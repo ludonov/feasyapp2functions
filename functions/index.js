@@ -9,12 +9,32 @@ admin.initializeApp(functions.config().firebase);
 exports.addMessage = functions.https.onRequest((req, res) => {
   // Grab the text parameter.
   const original = req.query.text;
+  var q = req.query;
   console.log("Adding new msg: " + original);
   // Push it into the Realtime Database then send a response
   admin.database().ref('/messages').push({original: original}).then(snapshot => {
     // Redirect with 303 SEE OTHER to the URL of the pushed object in the Firebase console.
     res.redirect(303, snapshot.ref);
   });
+
+  //if (this.IsAlreadyCandidate(candidature.ListReferenceKey)) {
+      //  reject(new Error("already_candidated"));
+      //} else {
+      //  let cand_db_promise = this.af.database.list("/candidates/" + candidature.ListOwnerUid + "/" + candidature.ListReferenceKey).push(StripForFirebase(candidate));
+      //  cand_db_promise.then((cand_db) => {
+      //    candidature.CandidateReferenceKey = cand_db_promise.key;
+      //    this.Candidatures_db.push(candidature).then(() => {
+      //      console.log("Globals.AddCandidature > new candidature pushed");
+      //      resolve(true);
+      //    }).catch((err: Error) => {
+      //      reject(new Error("cannot add candidature to db: " + err.message));
+      //    });
+      //  }).catch((err: Error) => {
+      //    reject(new Error("cannot add candidate to db: " + err.message));
+      //  });
+      //}
+
+
 });
 
 exports.makeUppercase = functions.database.ref('/messages/{pushId}/original')
