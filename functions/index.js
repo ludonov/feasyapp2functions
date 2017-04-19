@@ -4,8 +4,10 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp(functions.config().firebase);
 
-// Take the text parameter passed to this HTTP endpoint and insert it into the
-// Realtime Database under the path /messages/:pushId/original
+// Pubblica la lista.
+// Parametri: list_key, token
+// - list_key: chiave della lista unpublished da pubblicare
+// - token
 exports.publishList = functions.https.onRequest((req, res) => {
 
     var idToken = req.query.token;
@@ -104,44 +106,72 @@ exports.publishList = functions.https.onRequest((req, res) => {
         });
 
 
-  // Grab the text parameter.
-  //const original = req.query.text;
-  //var q = req.query;
-  //console.log("Adding new msg: " + original);
-  //// Push it into the Realtime Database then send a response
-  //admin.database().ref('/messages').push({original: original}).then(snapshot => {
-  //  // Redirect with 303 SEE OTHER to the URL of the pushed object in the Firebase console.
-  //  res.redirect(303, snapshot.ref);
-  //});
+    // Grab the text parameter.
+    //const original = req.query.text;
+    //var q = req.query;
+    //console.log("Adding new msg: " + original);
+    //// Push it into the Realtime Database then send a response
+    //admin.database().ref('/messages').push({original: original}).then(snapshot => {
+    //  // Redirect with 303 SEE OTHER to the URL of the pushed object in the Firebase console.
+    //  res.redirect(303, snapshot.ref);
+    //});
 
-  //if (this.IsAlreadyCandidate(candidature.ListReferenceKey)) {
-      //  reject(new Error("already_candidated"));
-      //} else {
-      //  let cand_db_promise = this.af.database.list("/candidates/" + candidature.ListOwnerUid + "/" + candidature.ListReferenceKey).push(StripForFirebase(candidate));
-      //  cand_db_promise.then((cand_db) => {
-      //    candidature.CandidateReferenceKey = cand_db_promise.key;
-      //    this.Candidatures_db.push(candidature).then(() => {
-      //      console.log("Globals.AddCandidature > new candidature pushed");
-      //      resolve(true);
-      //    }).catch((err: Error) => {
-      //      reject(new Error("cannot add candidature to db: " + err.message));
-      //    });
-      //  }).catch((err: Error) => {
-      //    reject(new Error("cannot add candidate to db: " + err.message));
-      //  });
-      //}
+    //if (this.IsAlreadyCandidate(candidature.ListReferenceKey)) {
+    //  reject(new Error("already_candidated"));
+    //} else {
+    //  let cand_db_promise = this.af.database.list("/candidates/" + candidature.ListOwnerUid + "/" + candidature.ListReferenceKey).push(StripForFirebase(candidate));
+    //  cand_db_promise.then((cand_db) => {
+    //    candidature.CandidateReferenceKey = cand_db_promise.key;
+    //    this.Candidatures_db.push(candidature).then(() => {
+    //      console.log("Globals.AddCandidature > new candidature pushed");
+    //      resolve(true);
+    //    }).catch((err: Error) => {
+    //      reject(new Error("cannot add candidature to db: " + err.message));
+    //    });
+    //  }).catch((err: Error) => {
+    //    reject(new Error("cannot add candidate to db: " + err.message));
+    //  });
+    //}
 
 
 });
 
-//exports.makeUppercase = functions.database.ref('/messages/{pushId}/original')
-//  .onWrite(event => {
-//    // Grab the current value of what was written to the Realtime Database.
-//    const original = event.data.val();
-//    console.log('Uppercasing', event.params.pushId, original);
-//    const uppercase = original.toUpperCase();
-//    // You must return a Promise when performing asynchronous tasks inside a Functions such as
-//    // writing to the Firebase Realtime Database.
-//    // Setting an "uppercase" sibling in the Realtime Database returns a Promise.
-//    return event.data.ref.parent.child('uppercase').set(uppercase);
-//  });
+exports.addCandidate = functions.database.ref('/candidatures/{userId}/{candidatureId}')
+    .onWrite(event => {
+
+        // Only edit data when it is first created.
+        if (event.data.previous.exists()) {
+            return;
+        }
+        // Exit when the data is deleted.
+        if (!event.data.exists()) {
+            return;
+        }
+
+        // Grab the current value of what was written to the Realtime Database.
+        var candidature = event.data.val();
+        console.log('Caught candidature of user: <' + event.params.userId + '> with key <' + event.params.candidatureId + '>');
+
+        var ListOwnerUid = candidature.ListOwnerUid;
+        var ListReferenceKey = candidature.ListReferenceKey;
+        var AddressKey = candidature.AddressKey;
+        var Comment = candidature.Comment;
+        console.log('ListOwnerUid: ' + ListOwnerUid);
+        console.log('ListReferenceKey: ' + ListReferenceKey);
+        console.log('AddressKey: ' + AddressKey);
+        console.log('Comment: ' + Comment);
+
+        var new_candidate = {};
+        new_candidate.uid = event.params.userId;
+        new_candidate.AddressKey = AddressKey;
+        new_candidate.CandidatureReferenceKey = event.params.candidatureId;
+        new_candidate.Visualised = false;
+        new_candidate.Comment = Comment || "";
+
+        return admin.database().ref('/users/' + event.params.userId + '/DisplayName').ref.once("value", _name => {
+            var user_name = _name.val();
+            new_candidate.DisplayName = user_name;
+            console.log('DisplayName: ' + user_name);
+            return admin.database().ref('/candidates/' + ListOwnerUid + '/' + ListReferenceKey).push(new_candidate);
+        });
+    });
