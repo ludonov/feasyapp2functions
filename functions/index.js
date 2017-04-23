@@ -248,6 +248,7 @@ exports.terminateList = functions.database.ref('/published_lists/{userId}/{listI
       // get list value
       return event.data.ref.parent.once("value", (_pub_list) => {
         var pub_list = _pub_list.val();
+        pub_list.ReviewLeft = false;
         if (pub_list != null) {
           console.log("Copying list in terminated_lists for demander...");
           return admin.database().ref('/terminated_lists/' + uid + '/as_demander/' + list_key).set(pub_list).then(() => {
