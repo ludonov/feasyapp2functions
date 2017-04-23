@@ -149,6 +149,7 @@ exports.addCandidate = functions.database.ref('/candidatures/{userId}/{candidatu
 
       var new_candidate = {};
       new_candidate.uid = event.params.userId;
+      new_candidate.ListReferenceKey = ListReferenceKey;
       new_candidate.AddressKey = AddressKey;
       new_candidate.CandidatureReferenceKey = event.params.candidatureId;
       new_candidate.Visualised = false;
@@ -158,7 +159,7 @@ exports.addCandidate = functions.database.ref('/candidatures/{userId}/{candidatu
         var user_name = _name.val();
         new_candidate.DisplayName = user_name;
         console.log('DisplayName: ' + user_name);
-        return admin.database().ref('/candidates/' + ListOwnerUid + '/' + ListReferenceKey).push(new_candidate);
+        return admin.database().ref('/candidates/' + ListOwnerUid).push(new_candidate);
       });
 
     } catch (e) {
@@ -181,7 +182,7 @@ exports.acceptCandidate = functions.database.ref('/published_lists/{userId}/{lis
         var acceptedCandidateKey = event.data.val();
         console.log('Candidate <' + acceptedCandidateKey + '> accepted for list <' + event.params.listId + '> of user <' + event.params.userId + '>');
 
-        return admin.database().ref('/candidates/' + event.params.userId + '/' + event.params.listId + '/' + acceptedCandidateKey).ref.once("value", _candidate => {
+        return admin.database().ref('/candidates/' + event.params.userId + '/' + acceptedCandidateKey).ref.once("value", _candidate => {
           var candidate = _candidate.val();
           console.log('Updating ChosenShopperUid and ChosenCandidatureKey...');
           return event.data.ref.parent.set({ ChosenCandidatureKey: candidate.CandidatureReferenceKey, ChosenShopperUid: candidate.uid }).then(() => {
