@@ -182,12 +182,14 @@ exports.acceptCandidate = functions.database.ref('/published_lists/{userId}/{lis
         var acceptedCandidateKey = event.data.val();
         console.log('Candidate <' + acceptedCandidateKey + '> accepted for list <' + event.params.listId + '> of user <' + event.params.userId + '>');
 
+        //console.log('/candidates/' + event.params.userId + '/' + acceptedCandidateKey);
         return admin.database().ref('/candidates/' + event.params.userId + '/' + acceptedCandidateKey).ref.once("value", _candidate => {
           var candidate = _candidate.val();
+          //console.log("candidate: " + JSON.stringify(candidate));
           console.log('Updating ChosenShopperUid and ChosenCandidatureKey...');
-          return event.data.ref.parent.set({ ChosenCandidatureKey: candidate.CandidatureReferenceKey, ChosenShopperUid: candidate.uid }).then(() => {
+          return admin.database().ref('/published_lists/' + event.params.userId + '/' + event.params.listId).update({ ChosenCandidatureKey: candidate.CandidatureReferenceKey, ChosenShopperUid: candidate.uid }).then(() => {
             console.log("Updated. Setting Accepted=true for shopper's candidature...");
-            return admin.database().ref('/candidatures/' + candidate.uid + '/' + candidate.CandidatureReferenceKey + 'Accepted').set(true).then(() => {
+            return admin.database().ref('/candidatures/' + candidate.uid + '/' + candidate.CandidatureReferenceKey + '/Accepted').set(true).then(() => {
               console.log("Shopper set as Accepted. Removing geopoints...");
               return event.data.ref.parent.once("value", (_pub_list) => {
                 var pub_list = _pub_list.val();
