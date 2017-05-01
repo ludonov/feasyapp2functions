@@ -38,7 +38,7 @@ function GetRealExpiryDate(expdate) {
 
 // Publish a list. Moves it from unpublished_lists to published_lists and publishes geopoints
 exports.publishList = functions.database.ref('/published_lists/{userId}/{listId}').onWrite(event => {
-  
+
   // Only edit data when it is first created.
   if (event.data.exists() && !event.data.previous.exists()) {
 
@@ -150,59 +150,88 @@ exports.acceptCandidate = functions.database.ref('/published_lists/{userId}/{lis
         let uid = event.params.userId;
         let list_key = event.params.listId;
         let pub_list = event.data.val();
+        let newChat = {};
 
         // Grab the current value of what was written to the Realtime Database.
         let acceptedCandidateKey = event.data.child('ChosenCandidateKey').val();
         console.log('Candidate <' + acceptedCandidateKey + '> accepted for list <' + list_key + '> of user <' + uid + '>');
 
         return once(admin.database().ref('/candidates/' + uid + '/' + acceptedCandidateKey)).then(candidate => {
-
-          //all the promises the function will create
-          let promises = [];
           
-          console.log("candidate: " + JSON.stringify(candidate));
+          newChat.DemanderUid = uid;
+          newChat.ShopperUid = candidate.uid;
+          newChat.DemanderName = pub_list.DemanderName;
+          newChat.ShopperName = candidate.DisplayName;
 
-          promises.push(
-            event.data.ref.update({ ChosenCandidatureKey: candidate.CandidatureReferenceKey, ChosenShopperUid: candidate.uid, ChosenShopperName: candidate.DisplayName }).then(() => {
-              console.log("Shopper data Updated");
-            }).catch((err) => {
-              console.warn("Cannot update shopper data: " + err.message);
-            })
-          );
+          return admin.database().ref('/chats').push(newChat).then( _addedChat => {
 
-          promises.push(
-            event.data.ref.child('DeliveryAddresses').child(candidate.AddressKey).child('Chosen').set(true).then(() => {
-              console.log("Updated chosen address.");
-            }).catch((err) => {
-              console.warn("Cannot update chosen address: " + err.message);
-            })
-          );
+            //all the promises the function will create
+            let promises = [];
 
-          promises.push(
-            admin.database().ref('/candidatures/' + candidate.uid + '/' + candidate.CandidatureReferenceKey + '/Accepted').set(true).then(() => {
-              console.log("Shopper set as Accepted.");
-            }).catch((err) => {
-              console.warn("Cannot set accepted to shopper's candidature: " + err.message);
-            })
-          );
+            console.log("candidate: " + JSON.stringify(candidate));
 
-          let geopoint_to_update = {};
-          for (let address_key in pub_list.DeliveryAddresses) {
-            geopoint_to_update[pub_list.DeliveryAddresses[address_key].GeopointKey] = {};
-          }
-          promises.push(
-            admin.database().ref("geopoints").update(geopoint_to_update).then(function () {
-              console.log("All geopoints removed. ");
-            }).catch((err) => {
-              console.warn("Cannot remove geopoint: " + err.message);
-            })
-          );
+            promises.push(
+              admin.database().ref('/user_chats/' + uid).update({ [_addedChat.key]: 0 }).then(() => {
+                console.log("Chat created for Demander");
+              }).catch((err) => {
+                console.warn("Cannot create chat for demander " + err.message);
+              })
+            );
 
-          return Promise.all(promises).then(() => {
-            console.log("All done:shopper data, chosen address, accepted, geopoints");
+            promises.push(
+              admin.database().ref('/user_chats/' + candidate.uid).update({ [_addedChat.key]: 0 }).then(() => {
+                console.log("Chat created for Shopper");
+              }).catch((err) => {
+                console.warn("Cannot create chat for shopper " + err.message);
+              })
+            );
+
+            promises.push(
+              event.data.ref.update({ ChosenCandidatureKey: candidate.CandidatureReferenceKey, ChosenShopperUid: candidate.uid, ChosenShopperName: candidate.DisplayName }).then(() => {
+                console.log("Shopper data Updated");
+              }).catch((err) => {
+                console.warn("Cannot update shopper data: " + err.message);
+              })
+            );
+
+            promises.push(
+              event.data.ref.child('DeliveryAddresses').child(candidate.AddressKey).child('Chosen').set(true).then(() => {
+                console.log("Updated chosen address.");
+              }).catch((err) => {
+                console.warn("Cannot update chosen address: " + err.message);
+              })
+            );
+
+            promises.push(
+              admin.database().ref('/candidatures/' + candidate.uid + '/' + candidate.CandidatureReferenceKey + '/Accepted').set(true).then(() => {
+                console.log("Shopper set as Accepted.");
+              }).catch((err) => {
+                console.warn("Cannot set accepted to shopper's candidature: " + err.message);
+              })
+            );
+
+            let geopoint_to_update = {};
+            for (let address_key in pub_list.DeliveryAddresses) {
+              geopoint_to_update[pub_list.DeliveryAddresses[address_key].GeopointKey] = {};
+            }
+            promises.push(
+              admin.database().ref("geopoints").update(geopoint_to_update).then(function () {
+                console.log("All geopoints removed. ");
+              }).catch((err) => {
+                console.warn("Cannot remove geopoint: " + err.message);
+              })
+            );
+
+            return Promise.all(promises).then(() => {
+              console.log("All done:shopper data, chosen address, accepted, geopoints");
+              return;
+            });
+
+
+          }).catch((err) => {
+            console.warn("Cannot retrieve candidate: " + err.message);
             return;
           });
-
 
         }).catch((err) => {
           console.warn("Cannot retrieve candidate: " + err.message);
