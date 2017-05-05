@@ -157,14 +157,14 @@ exports.acceptCandidate = functions.database.ref('/published_lists/{userId}/{lis
         console.log('Candidate <' + acceptedCandidateKey + '> accepted for list <' + list_key + '> of user <' + uid + '>');
 
         return once(admin.database().ref('/candidates/' + uid + '/' + acceptedCandidateKey)).then(candidate => {
-          
+
           newChat.DemanderUid = uid;
           newChat.ShopperUid = candidate.uid;
           newChat.DemanderName = pub_list.DemanderName;
           newChat.ShopperName = candidate.DisplayName;
           newChat.ListKey = list_key;
 
-          return admin.database().ref('/chats').push(newChat).then( _addedChat => {
+          return admin.database().ref('/chats').push(newChat).then(_addedChat => {
 
             //all the promises the function will create
             let promises = [];
@@ -382,7 +382,7 @@ exports.handleChatMessage = functions.database.ref('/chats/{chatId}/Messages/{me
         console.warn("Null token for message id <" + messageId + "> on chat: " + chatId);
         return event.data.ref.remove();
       }
-      
+
       console.log("Validating token: " + message.Token);
 
       return admin.auth().verifyIdToken(message.Token)
@@ -394,7 +394,9 @@ exports.handleChatMessage = functions.database.ref('/chats/{chatId}/Messages/{me
         });
     }
 
-  }
+  });
+
+
 
 
 
