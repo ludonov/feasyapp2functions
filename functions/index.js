@@ -379,7 +379,7 @@ exports.handleChatMessage = functions.database.ref('/chats/{chatId}/Messages/{me
 
       let message = event.data.val();
       if (message.Token == null || message.Token == "") {
-        console.warn("Invalid or null token for message id <" + messageId + "> on chat: " + chatId);
+        console.warn("Null token for message id <" + messageId + "> on chat: " + chatId);
         return event.data.ref.remove();
       }
       
@@ -389,6 +389,8 @@ exports.handleChatMessage = functions.database.ref('/chats/{chatId}/Messages/{me
         .then((decodedToken) => {
           let uid = decodedToken.uid;
           return Promise.all([event.ref.update({ OwnerId: uid }), event.data.ref.parent.update({ LastMessageKey: messageId })]);
+        }).catch((err) => {
+          console.warn("Token validation failed for message id <" + messageId + "> on chat: " + chatId);
         });
     }
 
