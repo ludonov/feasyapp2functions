@@ -162,6 +162,7 @@ exports.acceptCandidate = functions.database.ref('/published_lists/{userId}/{lis
           newChat.ShopperUid = candidate.uid;
           newChat.DemanderName = pub_list.DemanderName;
           newChat.ShopperName = candidate.DisplayName;
+          newChat.ListKey = list_key;
 
           return admin.database().ref('/chats').push(newChat).then( _addedChat => {
 
