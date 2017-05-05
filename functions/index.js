@@ -366,6 +366,35 @@ exports.moveReview = functions.database.ref('/reviews/{userId}/to_move/{reviewId
 
 
 
+
+// Move review from reviewer to reviewee
+exports.handleChatMessage = functions.database.ref('/chats/{chatId}/Messages/{messageId}')
+  .onWrite(event => {
+
+    if (event.data.exists() && !event.data.previous.exists()) {
+
+      let chatId = event.params.chatId;
+      let messageId = event.params.messageId;
+
+      let message = event.data.val();
+      if (message.Token == null || message.Token == "") {
+        console.warn("Invalid or null token for message id <" + messageId + "> on chat: " + chatId);
+        return event.data.ref.remove();
+      }
+      
+      console.log("Validating token: " + message.Token);
+
+      return admin.auth().verifyIdToken(message.Token)
+        .then((decodedToken) => {
+          let uid = decodedToken.uid;
+          return Promise.all([event.ref.update({ OwnerId: uid }), event.data.ref.parent.update({ LastMessageKey: messageId })]);
+        });
+    }
+
+  }
+
+
+
 // OLD CODE
 
 // Parameters: list_key, token
