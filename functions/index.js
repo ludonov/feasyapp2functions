@@ -157,13 +157,14 @@ exports.acceptCandidate = functions.database.ref('/published_lists/{userId}/{lis
         console.log('Candidate <' + acceptedCandidateKey + '> accepted for list <' + list_key + '> of user <' + uid + '>');
 
         return once(admin.database().ref('/candidates/' + uid + '/' + acceptedCandidateKey)).then(candidate => {
-          
+
           newChat.DemanderUid = uid;
           newChat.ShopperUid = candidate.uid;
           newChat.DemanderName = pub_list.DemanderName;
           newChat.ShopperName = candidate.DisplayName;
+          newChat.ListKey = list_key;
 
-          return admin.database().ref('/chats').push(newChat).then( _addedChat => {
+          return admin.database().ref('/chats').push(newChat).then(_addedChat => {
 
             //all the promises the function will create
             let promises = [];
@@ -363,6 +364,39 @@ exports.moveReview = functions.database.ref('/reviews/{userId}/to_move/{reviewId
     }
 
   });
+
+
+
+
+// Move review from reviewer to reviewee
+exports.handleChatMessage = functions.database.ref('/chats/{chatId}/Messages/{messageId}')
+  .onWrite(event => {
+
+    if (event.data.exists() && !event.data.previous.exists()) {
+
+      let chatId = event.params.chatId;
+      let messageId = event.params.messageId;
+
+      let message = event.data.val();
+      if (message.Token == null || message.Token == "") {
+        console.warn("Null token for message id <" + messageId + "> on chat: " + chatId);
+        return event.data.ref.remove();
+      }
+
+      console.log("Validating token: " + message.Token);
+
+      return admin.auth().verifyIdToken(message.Token)
+        .then((decodedToken) => {
+          let uid = decodedToken.uid;
+          return Promise.all([event.ref.update({ OwnerId: uid }), event.data.ref.parent.update({ LastMessageKey: messageId })]);
+        }).catch((err) => {
+          console.warn("Token validation failed for message id <" + messageId + "> on chat: " + chatId);
+        });
+    }
+
+  });
+
+
 
 
 
