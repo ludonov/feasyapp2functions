@@ -377,21 +377,25 @@ exports.handleChatMessage = functions.database.ref('/chats/{chatId}/Messages/{me
       let chatId = event.params.chatId;
       let messageId = event.params.messageId;
 
-      let message = event.data.val();
-      if (message.Token == null || message.Token == "") {
-        console.warn("Null token for message id <" + messageId + "> on chat: " + chatId);
-        return event.data.ref.remove();
-      }
+      return admin.database().ref('/chats/' + chatId).update({ LastMessageKey: messageId });
 
-      console.log("Validating token: " + message.Token);
+      //let message = event.data.val();
 
-      return admin.auth().verifyIdToken(message.Token)
-        .then((decodedToken) => {
-          let uid = decodedToken.uid;
-          return Promise.all([event.ref.update({ OwnerId: uid }), event.data.ref.parent.update({ LastMessageKey: messageId })]);
-        }).catch((err) => {
-          console.warn("Token validation failed for message id <" + messageId + "> on chat: " + chatId);
-        });
+      //if (message.Token == null || message.Token == "") {
+      //  console.warn("Null token for message id <" + messageId + "> on chat: " + chatId);
+      //  return event.data.ref.remove();
+      //}
+
+      //console.log("Validating token: " + message.Token);
+
+      //return admin.auth().verifyIdToken(message.Token)
+      //  .then((decodedToken) => {
+      //    let uid = decodedToken.uid;
+      //    return Promise.all([event.ref.update({ OwnerId: uid, Token: "" }), event.data.ref.parent.update({ LastMessageKey: messageId })]);
+      //  }).catch((err) => {
+      //    console.warn("Token validation failed for message id <" + messageId + "> on chat: " + chatId);
+      //    console.warn(JSON.stringify(err));
+      //  });
     }
 
   });
