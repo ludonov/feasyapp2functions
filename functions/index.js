@@ -188,7 +188,7 @@ exports.acceptCandidate = functions.database.ref('/published_lists/{userId}/{lis
             );
 
             promises.push(
-              event.data.ref.update({ ChosenCandidatureKey: candidate.CandidatureReferenceKey, ChosenShopperUid: candidate.uid, ChosenShopperName: candidate.DisplayName }).then(() => {
+              event.data.ref.update({ ChosenCandidatureKey: candidate.CandidatureReferenceKey, ChosenShopperUid: candidate.uid, ChosenShopperName: candidate.DisplayName, ChatKey: _addedChat.key }).then(() => {
                 console.log("Shopper data Updated");
               }).catch((err) => {
                 console.warn("Cannot update shopper data: " + err.message);
@@ -260,62 +260,105 @@ exports.terminateList = functions.database.ref('/published_lists/{userId}/{listI
 
       let uid = event.params.userId;
       let list_key = event.params.listId;
-      let pub_list = event.data.val();
 
       if (event.data.exists() && event.data.child('TerminatedDate').exists() && !event.data.child('TerminatedDate').previous.exists()) {
 
+        let pub_list = event.data.val();
+
         return once(admin.database().ref('/candidates/' + uid)).then(candidates => {
 
-          let promises = [];
+          return once(admin.database().ref('/chats/' + pub_list.ChatKey)).then(chat => {
 
-          for (let candidateKey in candidates) {
-            let candidate = candidates[candidateKey];
-            if (candidate.ListReferenceKey == list_key) {
-              promises.push(
-                admin.database().ref('/candidates/' + uid + '/' + candidateKey).remove()
-              );
-              promises.push(
-                admin.database().ref('/candidatures/' + candidate.uid + '/' + candidate.CandidatureReferenceKey).remove()
-              );
+
+            let promises = [];
+
+            for (let candidateKey in candidates) {
+              let candidate = candidates[candidateKey];
+              if (candidate.ListReferenceKey == list_key) {
+                promises.push(
+                  admin.database().ref('/candidates/' + uid + '/' + candidateKey).remove()
+                );
+                promises.push(
+                  admin.database().ref('/candidatures/' + candidate.uid + '/' + candidate.CandidatureReferenceKey).remove()
+                );
+              }
             }
-          }
 
-          pub_list.ReviewLeft = false;
-          for (let addressKey in pub_list.DeliveryAddresses) {
-            if (pub_list.DeliveryAddresses[addressKey].Chosen != true) {
-              delete pub_list.DeliveryAddresses[addressKey];
+            pub_list.ReviewLeft = false;
+            for (let addressKey in pub_list.DeliveryAddresses) {
+              if (pub_list.DeliveryAddresses[addressKey].Chosen != true) {
+                delete pub_list.DeliveryAddresses[addressKey];
+              }
             }
-          }
 
-          promises.push(
-            admin.database().ref('/terminated_lists/' + uid + '/as_demander/' + list_key).set(pub_list).then(() => {
-              console.log("Copied list in terminated_lists for demander.");
-            }).catch(err => {
-              console.warn("Cannot copy to terminated_lists for demander: " + err.message);
-              return;
-            })
-          );
+            promises.push(
+              admin.database().ref('/terminated_lists/' + uid + '/as_demander/' + list_key).set(pub_list).then(() => {
+                console.log("Copied list in terminated_lists for demander.");
+              }).catch(err => {
+                console.warn("Cannot copy to terminated_lists for demander: " + err.message);
+                return;
+              })
+            );
 
-          promises.push(
-            admin.database().ref('/terminated_lists/' + pub_list.ChosenShopperUid + '/as_shopper/' + list_key).set(pub_list).then(() => {
-              console.log("Copied list in terminated_lists for shopper.");
-            }).catch(err => {
-              console.warn("Cannot push to terminated_lists for shopper: " + err.message);
-              return;
-            })
-          );
+            promises.push(
+              admin.database().ref('/terminated_lists/' + pub_list.ChosenShopperUid + '/as_shopper/' + list_key).set(pub_list).then(() => {
+                console.log("Copied list in terminated_lists for shopper.");
+              }).catch(err => {
+                console.warn("Cannot push to terminated_lists for shopper: " + err.message);
+                return;
+              })
+            );
 
-          promises.push(
-            admin.database().ref('/published_lists/' + uid + '/' + list_key).remove().then(() => {
-              console.log("List removed from published_lists.");
-            }).catch(err => {
-              console.warn("Cannot remove published_lists: " + err.message);
-              return;
-            })
-          );
+            promises.push(
+              admin.database().ref('/published_lists/' + uid + '/' + list_key).remove().then(() => {
+                console.log("List removed from published_lists.");
+              }).catch(err => {
+                console.warn("Cannot remove published_lists: " + err.message);
+                return;
+              })
+            );
 
-          return Promise.all(promises).then(() => {
-            console.log("All done.");
+            promises.push(
+              admin.database().ref('/user_chats/' + uid + "/" + pub_list.ChatKey).remove().then(() => {
+                console.log("Chat removed from chats.");
+              }).catch(err => {
+                console.warn("Cannot remove chat: " + err.message);
+                return;
+              })
+            );
+
+            promises.push(
+              admin.database().ref('/user_chats/' + pub_list.ChosenShopperUid + "/" + pub_list.ChatKey).remove().then(() => {
+                console.log("Chat removed from chats.");
+              }).catch(err => {
+                console.warn("Cannot remove chat: " + err.message);
+                return;
+              })
+            );
+
+            promises.push(
+              admin.database().ref('/chats/' + pub_list.ChatKey).remove().then(() => {
+                console.log("Chat removed from chats.");
+              }).catch(err => {
+                console.warn("Cannot remove chat: " + err.message);
+                return;
+              })
+            );
+
+            promises.push(
+              admin.database().ref('/terminated_chats/' + pub_list.ChatKey).set(chat).then(() => {
+                console.log("Chat moved to terminated.");
+              }).catch(err => {
+                console.warn("Cannot move chat to terminated: " + err.message);
+                return;
+              })
+            );
+
+            return Promise.all(promises).then(() => {
+              return admin.
+                console.log("All done.");
+            });
+
           });
 
         });
@@ -367,6 +410,7 @@ exports.moveReview = functions.database.ref('/reviews/{userId}/to_move/{reviewId
 
 
 
+/*
 
 // Move review from reviewer to reviewee
 exports.handleChatMessage = functions.database.ref('/chats/{chatId}/Messages/{messageId}')
@@ -399,6 +443,8 @@ exports.handleChatMessage = functions.database.ref('/chats/{chatId}/Messages/{me
     }
 
   });
+
+*/
 
 
 
